@@ -1,9 +1,9 @@
-name: Deploy LiveCam-Img to GitHub Pages
+name: Deploy sites to GitHub Pages
 
 on:
   push:
     branches: [main]
-    paths: ['LiveCam-Img/**', '.github/workflows/deploy-pages.yml']
+    paths: ['LiveCam-Img/**', 'LiveCam-Webp/**', 'index.html', '.github/workflows/deploy-pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -26,10 +26,10 @@ jobs:
         uses: actions/checkout@v4
       - name: Configure Pages
         uses: actions/configure-pages@v5
-      - name: Upload LiveCam-Img folder as Pages artifact
+      - name: Upload repo as Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: LiveCam-Img
+          path: .
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
