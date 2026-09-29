@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#07090d">
+<meta name="mobile-web-app-capable" content="yes">
+<title>ImgCam — Offline Photo to JPEG / PNG / WebP</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<style>
+:root{
+  --bg:#07090d; --card:rgba(255,255,255,.045); --line:rgba(255,255,255,.09);
+  --txt:#eef2f7; --mut:#8b94a7; --ac1:#fbbf24; --ac2:#f97316;
+  --bad:#f87171; --ok:#34d399;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  min-height:100dvh; display:flex; flex-direction:column; color:var(--txt);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  background:
+    radial-gradient(1100px 750px at 78% -12%, rgba(251,191,36,.08), transparent 60%),
+    radial-gradient(900px 700px at -5% 108%, rgba(249,115,22,.07), transparent 55%),
+    var(--bg);
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+  user-select:none;
+}
+button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer}
+
+/* ---------- header ---------- */
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px}
+.brand{display:flex;align-items:center;gap:11px}
+.dot{width:11px;height:11px;border-radius:50%;background:linear-gradient(135deg,var(--ac1),var(--ac2));box-shadow:0 0 14px rgba(251,191,36,.6)}
+.brand h1{margin:0;font-size:17px;letter-spacing:.16em;font-weight:800}
+.brand p{margin:1px 0 0;font-size:10.5px;color:var(--mut);letter-spacing:.05em}
+.hbtns{display:flex;align-items:center;gap:9px}
+.chip{font-size:10px;letter-spacing:.16em;font-weight:700;color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.03)}
+.chip.live{color:var(--ac1);border-color:rgba(251,191,36,.45)}
+.chip.fmt{color:var(--ac1)}
+.ic{width:42px;height:42px;border-radius:14px;background:var(--card);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;transition:transform .12s,background .2s}
+.ic:active{transform:scale(.9)}
+.ic svg{width:20px;height:20px;stroke:var(--txt);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ic.on{background:linear-gradient(135deg,rgba(251,191,36,.22),rgba(249,115,22,.22));border-color:rgba(251,191,36,.5)}
+.ic.attn{animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(251,191,36,.5)}55%{box-shadow:0 0 0 9px rgba(251,191,36,0)}}
+
+/* ---------- viewfinder ---------- */
+.view{position:relative;margin:4px 16px 0;border-radius:22px;overflow:hidden;background:#000;
+  border:1px solid var(--line);aspect-ratio:var(--ar,.5625);box-shadow:0 22px 55px -20px rgba(0,0,0,.85)}
+.view video{width:100%;height:100%;object-fit:cover;display:block}
+.view.mirror video{transform:scaleX(-1)}
+.view .grid{position:absolute;inset:0;opacity:0;transition:opacity .25s;pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px);
+  background-size:33.3% 33.3%}
+.view.live .grid{opacity:.55}
+.vf-top{position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:center;pointer-events:none}
+.badge{display:flex;align-items:center;gap:6px;font-size:10.5px;letter-spacing:.14em;font-weight:700;padding:6px 11px;border-radius:999px;background:rgba(0,0,0,.5);border:1px solid var(--line)}
+.camerr{position:absolute;left:12px;right:12px;bottom:12px;display:none;padding:12px 14px;border-radius:14px;
+  background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.35);color:#fecaca;font-size:12.5px;line-height:1.5}
+.camerr.show{display:block}
+.hint{position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.06em;pointer-events:none}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+.flash.go{animation:flash .3s ease-out}
+@keyframes flash{0%{opacity:.85}100%{opacity:0}}
+.busyline{position:absolute;left:14px;right:14px;bottom:52px;text-align:center;font-size:11px;letter-spacing:.1em;color:var(--ac1);display:none}
+.view.busy .busyline{display:block}
+
+/* ---------- dock ---------- */
+.dock{display:flex;align-items:center;justify-content:space-between;padding:20px 36px calc(20px + env(safe-area-inset-bottom))}
+.side{width:54px;height:54px;border-radius:50%;background:var(--card);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;transition:transform .12s,opacity .2s}
+.side:active{transform:scale(.88)}
+.side svg{width:23px;height:23px;stroke:var(--txt);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.side:disabled{opacity:.35}
+.shutter{width:78px;height:78px;border-radius:50%;border:4px solid rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;transition:transform .1s,opacity .2s}
+.shutter i{width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,var(--ac1),var(--ac2));box-shadow:0 0 22px rgba(251,191,36,.45);transition:transform .1s}
+.shutter:active i{transform:scale(.82)}
+.shutter:disabled{opacity:.35}
+
+/* ---------- result overlay ---------- */
+.result{position:fixed;inset:0;z-index:40;background:rgba(5,7,11,.97);display:flex;flex-direction:column;
+  opacity:0;pointer-events:none;transition:opacity .25s;padding:env(safe-area-inset-top) 0 0}
+.result.show{opacity:1;pointer-events:auto}
+.rtop{display:flex;align-items:center;justify-content:space-between;padding:14px 18px}
+.rtop h2{margin:0;font-size:14px;letter-spacing:.18em;font-weight:800;color:var(--ac1)}
+.rimg{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:6px 16px}
+.rimg img{max-width:100%;max-height:100%;border-radius:14px;box-shadow:0 24px 60px -22px rgba(0,0,0,.9);background:#000}
+.rmeta{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding:10px 16px 4px}
+.rmeta span{font-size:11px;letter-spacing:.08em;color:var(--mut);border:1px solid var(--line);background:rgba(255,255,255,.03);border-radius:999px;padding:6px 12px}
+.rmeta b{color:var(--txt);font-weight:600}
+.rbtns{display:flex;gap:10px;padding:14px 18px calc(20px + env(safe-area-inset-bottom))}
+.btn{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:15px 10px;border-radius:16px;font-size:13px;font-weight:700;letter-spacing:.05em;transition:transform .12s}
+.btn:active{transform:scale(.96)}
+.btn svg{width:18px;height:18px;stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.btn.pri{background:linear-gradient(135deg,var(--ac1),var(--ac2));color:#1c1204}
+.btn.pri svg{stroke:#1c1204}
+.btn.gho{background:var(--card);border:1px solid var(--line)}
+.btn.gho svg{stroke:var(--txt)}
+.btn.dng{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.35);color:#fca5a5}
+.btn.dng svg{stroke:#fca5a5}
+
+/* ---------- settings sheet ---------- */
+.backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:45;opacity:0;pointer-events:none;transition:opacity .25s}
+.backdrop.show{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;background:#0c1017;border-radius:26px 26px 0 0;
+  border-top:1px solid var(--line);padding:10px 20px calc(22px + env(safe-area-inset-bottom));
+  transform:translateY(105%);transition:transform .3s cubic-bezier(.2,.8,.2,1);max-height:88dvh;overflow-y:auto}
+.sheet.show{transform:none}
+.handle{width:44px;height:4px;border-radius:99px;background:rgba(255,255,255,.18);margin:6px auto 14px}
+.shead{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.shead h3{margin:0;font-size:13px;letter-spacing:.18em;font-weight:800}
+.row{padding:13px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.row:last-of-type{border-bottom:none}
+.row label{display:flex;justify-content:space-between;align-items:center;font-size:11px;letter-spacing:.14em;color:var(--mut);font-weight:700;margin-bottom:10px}
+.seg{display:flex;gap:8px;flex-wrap:wrap}
+.seg button{padding:9px 16px;border-radius:12px;background:rgba(255,255,255,.045);border:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--txt);transition:all .15s}
+.seg button.act{background:linear-gradient(135deg,var(--ac1),var(--ac2));color:#1c1204;border-color:transparent;font-weight:800}
+.seg.locked button{opacity:.32;pointer-events:none}
+.note{font-size:11px;line-height:1.6;color:var(--mut);margin:10px 0 0}
+.note b{color:var(--txt)}
+.kbd{color:var(--ac1)}
+.star{color:var(--ac1)}
+
+/* ---------- toast ---------- */
+.toast{position:fixed;left:50%;bottom:calc(118px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(10px);
+  background:#101623;border:1px solid var(--line);padding:11px 18px;border-radius:999px;font-size:12.5px;
+  opacity:0;transition:.25s;z-index:60;max-width:86vw;text-align:center;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="dot"></span>
+    <div>
+      <h1>IMGCAM</h1>
+      <p id="verTag">PHOTO → JPEG / PNG / WEBP · OFFLINE · RAM-ONLY</p>
+    </div>
+  </div>
+  <div class="hbtns">
+    <span class="chip" id="status">OFF</span>
+    <button class="ic" id="btnPower" aria-label="Camera on / off">
+      <svg viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg>
+    </button>
+    <button class="ic" id="btnSettings" aria-label="Settings">
+      <svg viewBox="0 0 24 24"><path d="M4 7h9"/><circle cx="17" cy="7" r="2.6"/><path d="M4 12h3"/><circle cx="11" cy="12" r="2.6"/><path d="M14 12h6"/><path d="M4 17h9"/><circle cx="17" cy="17" r="2.6"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="view" id="viewfinder" style="--ar:0.5625">
+  <video id="video" autoplay muted playsinline></video>
+  <div class="grid"></div>
+  <div class="vf-top">
+    <span class="badge" id="liveBadge">OFF</span>
+    <span class="badge" id="resBadge">—</span>
+  </div>
+  <div class="busyline" id="busyTxt">CONVERTING…</div>
+  <div class="hint" id="vfHint">Turn camera ON to start</div>
+  <div class="camerr" id="camError"></div>
+  <div class="flash" id="flash"></div>
+</div>
+
+<div class="dock">
+  <button class="side" id="btnFlip" aria-label="Switch camera">
+    <svg viewBox="0 0 24 24"><path d="M20 8a8 8 0 0 0-14.9-2.5"/><path d="M5 3v3.5h3.5"/><path d="M4 16a8 8 0 0 0 14.9 2.5"/><path d="M19 21v-3.5h-3.5"/></svg>
+  </button>
+  <button class="shutter" id="btnShutter" aria-label="Take photo"><i></i></button>
+  <button class="side" id="btnClearQuick" aria-label="Release RAM">
+    <svg viewBox="0 0 24 24"><path d="M5 7h14"/><path d="M9 7V5h6v2"/><path d="M7 7l1 13h8l1-13"/></svg>
+  </button>
+</div>
+
+<!-- RESULT -->
+<div class="result" id="screenResult">
+  <div class="rtop">
+    <h2>RESULT · <span id="fmtTag">JPEG</span></h2>
+    <span class="chip">1 / 1 PREVIEW</span>
+  </div>
+  <div class="rimg"><img id="shot" alt="Photo preview"></div>
+  <div class="rmeta" id="meta"></div>
+  <div class="rbtns">
+    <button class="btn pri" id="btnDl"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="M12 4v11"/><path d="M8 11l4 4 4-4"/><path d="M5 20h14"/></svg>SAVE</button>
+    <button class="btn gho" id="btnRetake"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="M20 8a8 8 0 0 0-14.9-2.5"/><path d="M5 3v3.5h3.5"/><path d="M4 16a8 8 0 0 0 14.9 2.5"/><path d="M19 21v-3.5h-3.5"/></svg>RETAKE</button>
+    <button class="btn dng" id="btnClear"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="M5 7h14"/><path d="M9 7V5h6v2"/><path d="M7 7l1 13h8l1-13"/></svg>CLEAR</button>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="backdrop" id="backdrop"></div>
+<div class="sheet" id="sheet">
+  <div class="handle"></div>
+  <div class="shead"><h3>CAPTURE SETTINGS</h3><button class="ic" id="btnClose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+
+  <div class="row">
+    <label>OUTPUT FORMAT <span class="star">★ = default</span></label>
+    <div class="seg" data-key="fmt">
+      <button data-v="jpeg" class="act">JPEG <span class="star">★</span></button>
+      <button data-v="png">PNG</button>
+      <button data-v="webp">WebP</button>
+    </div>
+    <p class="note" id="fmtNote">JPEG — universal, small files, best for photos.</p>
+  </div>
+
+  <div class="row">
+    <label>QUALITY <span id="qLock" style="display:none;letter-spacing:.04em">(unused for PNG)</span></label>
+    <div class="seg" data-key="q" id="segQ">
+      <button data-v="low">LOW</button>
+      <button data-v="med" class="act">MEDIUM <span class="star">★</span></button>
+      <button data-v="high">HIGH</button>
+    </div>
+    <p class="note" id="qNote">Higher quality = larger file. Applies to JPEG / WebP.</p>
+  </div>
+
+  <div class="row">
+    <label>ASPECT RATIO</label>
+    <div class="seg" data-key="ratio">
+      <button data-v="9:16" class="act">9:16 <span class="star">★</span></button>
+      <button data-v="1:1">1:1</button>
+      <button data-v="16:9">16:9</button>
+      <button data-v="4:3">4:3</button>
+    </div>
+  </div>
+
+  <div class="row">
+    <label>OUTPUT SIZE <span style="letter-spacing:.04em">(short edge)</span></label>
+    <div class="seg" data-key="size">
+      <button data-v="360">360p</button>
+      <button data-v="480" class="act">480p <span class="star">★</span></button>
+      <button data-v="720">720p</button>
+    </div>
+    <p class="note">480p is the low-RAM sweet spot for 4 GB phones.</p>
+  </div>
+
+  <div class="row">
+    <p class="note"><b>RAM-ONLY by design.</b> Settings and previews live in RAM only — never localStorage, IndexedDB, cache or disk. Clearing the preview or closing the app wipes everything.<br>
+    <b>Offline:</b> open once on HTTPS → browser menu → <span class="kbd">Add to Home screen</span>. After that it runs with zero network.</p>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<canvas id="cv" hidden></canvas>
+<script>
+'use strict';
+/* ============ IMGCAM — Camera → Static Image (JPEG / PNG / WebP) ============
+   100% offline · RAM-only · zero storage · low-RAM tuned
+   Conversion: canvas.drawImage → canvas.toBlob(mime, quality)  */
+
+var $ = function(s){ return document.querySelector(s); };
+var video=$('#video'), cv=$('#cv'), ctx=cv.getContext('2d',{alpha:false});
+var els={status:$('#status'),badge:$('#liveBadge'),resBadge:$('#resBadge'),fmtTag:$('#fmtTag'),
+  power:$('#btnPower'),flip:$('#btnFlip'),shutter:$('#btnShutter'),clearQuick:$('#btnClearQuick'),
+  settings:$('#btnSettings'),sheet:$('#sheet'),backdrop:$('#backdrop'),close:$('#btnClose'),
+  view:$('#viewfinder'),result:$('#screenResult'),img:$('#shot'),meta:$('#meta'),
+  dl:$('#btnDl'),retake:$('#btnRetake'),clear:$('#btnClear'),toast:$('#toast'),
+  err:$('#camError'),hint:$('#vfHint'),flash:$('#flash'),busyTxt:$('#busyTxt'),
+  segQ:$('#segQ'),qNote:$('#qNote'),qLock:$('#qLock'),fmtNote:$('#fmtNote')};
+
+var RATIO={'9:16':9/16,'1:1':1,'16:9':16/9,'4:3':4/3};
+var RES={360:{w:640,h:360},480:{w:960,h:540},720:{w:1280,h:720}};
+var Q={low:0.6,med:0.85,high:0.95};
+var MIME={jpeg:'image/jpeg',png:'image/png',webp:'image/webp'};
+var EXT={jpeg:'jpg',png:'png',webp:'webp'};
+var FMTLABEL={jpeg:'JPEG',png:'PNG',webp:'WEBP'};
+var FMTNOTE={jpeg:'JPEG — universal, small files, best for photos.',
+  png:'PNG — pixel-perfect and lossless, but large files.',
+  webp:'WebP — modern format, great quality at small size.'};
+
+/* RAM-only settings (reset on close — never persisted). JPEG is default. */
+var S={fmt:'jpeg',q:'med',ratio:'9:16',size:480};
+/* runtime state */
+var st={on:false,busy:false,facing:'environment',stream:null,url:null,blob:null,name:'',autoOff:false};
+
+/* ---------- helpers ---------- */
+function toast(m){els.toast.textContent=m;els.toast.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(function(){els.toast.classList.remove('show');},2800);}
+function even(n){n=Math.round(n);return n%2?n+1:n;}
+function dims(short){var r=RATIO[S.ratio];return r>=1?{w:even(short*r),h:even(short)}:{w:even(short),h:even(short/r)};}
+function crop(vw,vh,r){var sw=vw,sh=vh;if(vw/vh>r){sw=vh*r;}else{sh=vw/r;}return{sx:(vw-sw)/2,sy:(vh-sh)/2,sw:sw,sh:sh};}
+function stamp(){var d=new Date(),p=function(n){return String(n).padStart(2,'0');};
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'_'+p(d.getHours())+'-'+p(d.getMinutes())+'-'+p(d.getSeconds());}
+function setStatus(t,live){els.status.textContent=t;els.status.classList.toggle('live',!!live);els.badge.textContent=t;}
+function fmtKB(n){return n<102400?(n/1024).toFixed(1):(n/1048576).toFixed(2);}
+
+/* ---------- camera ---------- */
+function prettyErr(e){
+  var n=e&&e.name||'';
+  if(n==='NotAllowedError')return 'Permission denied. Tap the lock/camera icon in the address bar → allow Camera → tap ON again.';
+  if(n==='NotFoundError'||n==='OverconstrainedError')return 'No usable camera found on this device.';
+  if(n==='NotReadableError')return 'Camera is busy in another app. Close it and tap ON again.';
+  return 'Camera error: '+(e&&e.message?e.message:n||'unknown');
+}
+function camFail(msg){els.err.textContent=msg;els.err.classList.add('show');setStatus('OFF',false);}
+async function camStart(){
+  if(st.on||st.busy)return;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){camFail('Camera API unavailable. Open this app in Chrome on Android over HTTPS.');return;}
+  st.busy=true;els.power.classList.add('attn');
+  try{
+    camStop(true);
+    var r=RES[S.size];
+    st.stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{
+      facingMode:{ideal:st.facing},width:{ideal:r.w},height:{ideal:r.h},frameRate:{ideal:30}}});
+    video.srcObject=st.stream;
+    await video.play();
+    st.on=true;st.autoOff=false;
+    els.err.classList.remove('show');
+    els.view.classList.add('live');els.view.classList.toggle('mirror',st.facing==='user');
+    els.hint.style.display='none';els.power.classList.add('on');
+    setStatus('LIVE',true);
+    var tr=st.stream.getVideoTracks()[0]&&st.stream.getVideoTracks()[0].getSettings();
+    els.resBadge.textContent=tr&&tr.width?tr.width+'×'+tr.height:'—';
+  }catch(e){camFail(prettyErr(e));}
+  finally{st.busy=false;els.power.classList.remove('attn');}
+}
+function camStop(silent){
+  if(st.stream){var ts=st.stream.getTracks();for(var i=0;i<ts.length;i++){try{ts[i].stop();}catch(_){}}}
+  st.stream=null;
+  try{video.pause();}catch(_){}
+  video.srcObject=null;               /* free decoder RAM */
+  st.on=false;
+  els.view.classList.remove('live','busy','mirror');
+  els.power.classList.remove('on');
+  els.hint.style.display='';setStatus('OFF',false);
+  if(!silent)toast('Camera OFF — RAM freed');
+}
+els.power.addEventListener('click',function(){els.err.classList.remove('show');st.on?camStop():camStart();});
+els.flip.addEventListener('click',async function(){
+  if(st.busy)return;
+  st.facing=st.facing==='user'?'environment':'user';
+  if(st.on){await camStart();toast(st.facing==='user'?'Front camera':'Back camera');}
+  else toast('Facing set: '+(st.facing==='user'?'Front':'Back')+' — turn ON to apply');
+});
+/* auto-stop on hide = big RAM/battery save */
+document.addEventListener('visibilitychange',function(){
+  if(document.hidden){if(st.on){camStop(true);st.autoOff=true;}}
+  else if(st.autoOff){st.autoOff=false;toast('Camera paused to save RAM — tap power to resume');els.power.classList.add('attn');}
+});
+
+/* ---------- settings ---------- */
+els.settings.addEventListener('click',function(){els.sheet.classList.add('show');els.backdrop.classList.add('show');});
+function closeSheet(){els.sheet.classList.remove('show');els.backdrop.classList.remove('show');}
+els.close.addEventListener('click',closeSheet);
+els.backdrop.addEventListener('click',closeSheet);
+Array.prototype.forEach.call(document.querySelectorAll('.seg[data-key]'),function(seg){
+  seg.addEventListener('click',function(e){
+    var b=e.target.closest('button[data-v]');if(!b)return;
+    var key=seg.dataset.key;
+    S[key]=key==='size'?+b.dataset.v:b.dataset.v;
+    Array.prototype.forEach.call(seg.querySelectorAll('button'),function(x){x.classList.toggle('act',x===b);});
+    if(key==='fmt')updateFmt();
+    if(key==='ratio')applyRatio();
+  });
+});
+function updateFmt(){
+  var png=S.fmt==='png';
+  els.segQ.classList.toggle('locked',png);
+  els.qLock.style.display=png?'inline':'none';
+  els.qNote.textContent=png?'PNG is lossless — it always keeps full quality, so no quality setting is used.':'Higher quality = larger file. Applies to JPEG / WebP.';
+  els.fmtNote.textContent=FMTNOTE[S.fmt];
+  els.fmtTag.textContent=FMTLABEL[S.fmt];
+}
+function applyRatio(){els.view.style.setProperty('--ar',RATIO[S.ratio]);}
+
+/* ---------- capture + convert ---------- */
+function shoot(){
+  var d=dims(S.size),c=crop(video.videoWidth,video.videoHeight,RATIO[S.ratio]);
+  cv.width=d.w;cv.height=d.h;
+  ctx.save();
+  if(st.facing==='user'){ctx.translate(d.w,0);ctx.scale(-1,1);}
+  ctx.drawImage(video,c.sx,c.sy,c.sw,c.sh,0,0,d.w,d.h);
+  ctx.restore();
+  var q=S.fmt==='png'?undefined:Q[S.q];
+  cv.toBlob(function(b){
+    cv.width=0;cv.height=0;                     /* free canvas RAM immediately */
+    if(!b){toast('Conversion failed — pick another format');return;}
+    showResult(b,'imgcam_'+stamp()+'.'+EXT[S.fmt],
+      d.w+'×'+d.h,FMTLABEL[S.fmt],fmtKB(b.size)+' KB');
+    toast('Done — '+FMTLABEL[S.fmt]+' ready');
+  },MIME[S.fmt],q);
+}
+els.shutter.addEventListener('click',function(){
+  if(st.busy)return;
+  if(!st.on){toast('Turn the camera ON first');return;}
+  if(!video.videoWidth){toast('Camera is warming up… try again');return;}
+  st.busy=true;
+  els.view.classList.add('busy');els.busyTxt.textContent='CONVERTING…';
+  els.shutter.disabled=true;els.flip.disabled=true;
+  els.flash.classList.remove('go');void els.flash.offsetWidth;els.flash.classList.add('go');
+  try{shoot();}
+  catch(e){
+    cv.width=0;cv.height=0;
+    toast('Capture failed: '+(e&&e.message?e.message:'unknown'));
+  }finally{
+    st.busy=false;
+    els.view.classList.remove('busy');
+    els.shutter.disabled=false;els.flip.disabled=false;
+  }
+});
+
+/* ---------- result (single-preview RAM rule) ---------- */
+function releaseUrl(){
+  if(st.url){URL.revokeObjectURL(st.url);st.url=null;}
+  st.blob=null;
+  els.img.removeAttribute('src');
+}
+function showResult(blob,name){
+  releaseUrl();                                  /* only 1 preview alive at a time */
+  st.blob=blob;st.name=name;st.url=URL.createObjectURL(blob);
+  els.img.src=st.url;
+  var m=els.meta;m.innerHTML='';
+  Array.prototype.slice.call(arguments,2).forEach(function(t){
+    var s=document.createElement('span');
+    var b=document.createElement('b');b.textContent=t;s.appendChild(b);m.appendChild(s);
+  });
+  els.result.classList.add('show');
+}
+els.dl.addEventListener('click',function(){
+  if(!st.blob){toast('Nothing to save');return;}
+  var a=document.createElement('a');a.href=st.url;a.download=st.name;
+  document.body.appendChild(a);a.click();a.remove();
+  toast('Saved: '+st.name);
+});
+els.retake.addEventListener('click',function(){
+  releaseUrl();els.result.classList.remove('show');
+  if(!st.on)camStart();
+});
+els.clear.addEventListener('click',function(){
+  releaseUrl();els.result.classList.remove('show');
+  toast('Preview cleared — RAM freed');
+});
+els.clearQuick.addEventListener('click',function(){
+  if(st.url||st.blob){releaseUrl();els.result.classList.remove('show');toast('RAM released');}
+  else toast('Nothing held in RAM');
+});
+
+/* ---------- init ---------- */
+applyRatio();updateFmt();
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){
+  addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){});});
+}
+</script>
+</body>
+</html>
