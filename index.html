@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StoreCode-hub — Live Web Apps</title>
+<style>
+:root{--bg:#07090d;--card:rgba(255,255,255,.045);--line:rgba(255,255,255,.09);--txt:#eef2f7;--mut:#8b94a7;--ac1:#fbbf24;--ac2:#f97316}
+*{box-sizing:border-box}
+body{margin:0;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:24px;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--txt);
+  background:radial-gradient(1100px 750px at 78% -12%,rgba(251,191,36,.08),transparent 60%),
+             radial-gradient(900px 700px at -5% 108%,rgba(249,115,22,.07),transparent 55%),var(--bg)}
+h1{margin:0;font-size:20px;letter-spacing:.18em;font-weight:800;text-transform:uppercase}
+p{margin:0;color:var(--mut);font-size:13px;letter-spacing:.05em}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;max-width:640px;width:100%}
+a.card{display:block;text-decoration:none;color:inherit;border:1px solid var(--line);border-radius:16px;padding:22px 20px;
+  background:var(--card);transition:border-color .2s,transform .2s}
+a.card:hover{border-color:rgba(251,191,36,.5);transform:translateY(-2px)}
+.card h2{margin:0 0 6px;font-size:16px;letter-spacing:.06em}
+.card span{color:var(--ac1);font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
+.card p{margin:8px 0 0;line-height:1.55}
+</style>
+</head>
+<body>
+<h1>StoreCode-hub · Web Apps</h1>
+<p>Free offline camera tools — hosted on GitHub Pages</p>
+<div class="grid">
+  <a class="card" href="./LiveCam-Img/">
+    <span>Photos</span>
+    <h2>ImgCam</h2>
+    <p>Take a photo and convert it instantly to JPEG, PNG or WebP. 100% offline, nothing ever leaves your phone.</p>
+  </a>
+  <a class="card" href="./LiveCam-Webp/">
+    <span>Animated</span>
+    <h2>WebPCam</h2>
+    <p>Record short clips straight to animated WebP, fully on-device. No server, no upload, works offline.</p>
+  </a>
+</div>
+</body>
+</html>
